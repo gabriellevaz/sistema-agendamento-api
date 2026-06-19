@@ -1,0 +1,4 @@
+.venv/
+.env
+.aider.chat.history.md
+.aider.input.history
