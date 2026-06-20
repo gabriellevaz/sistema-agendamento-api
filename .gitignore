@@ -1,4 +1,17 @@
+# Ambiente virtual e variáveis
 .venv/
+env/
 .env
+
+# Arquivos temporários do Python
+__pycache__/
+*.pyc
+
+# Banco de dados local
+*.db
+*.sqlite3
+
+# Históricos e arquivos do Aider (IA)
 .aider.chat.history.md
 .aider.input.history
+.aider*

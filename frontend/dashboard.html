@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Sistema de Agendamento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">AgendaPro</a>
+            <button class="btn btn-outline-light btn-sm" onclick="logout()">Sair (Logout)</button>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2 class="mb-4">Serviços Disponíveis</h2>
+        <div id="events-container" class="row">
+            <div class="col-12 text-center text-muted" id="loading-msg">
+                <p>Carregando dados da API...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Agendar Horário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="modal-service-name" class="fw-bold text-primary mb-3"></p>
+            
+            <div id="booking-error" class="alert alert-danger d-none"></div>
+            <div id="booking-success" class="alert alert-success d-none"></div>
+            
+            <form id="booking-form">
+              <input type="hidden" id="modal-event-id">
+              <input type="hidden" id="modal-company-id">
+              
+              <div class="mb-4">
+                <label for="booking-datetime" class="form-label">Escolha a Data e Hora:</label>
+                <input type="datetime-local" class="form-control" id="booking-datetime" required>
+              </div>
+              <button type="submit" class="btn btn-success w-100" id="btn-confirm-booking">Confirmar Agendamento</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+ <script>
+        const container = document.getElementById('events-container');
+
+        // Função para mostrar na tela o que o código está fazendo
+        function updateStatus(message) {
+            container.innerHTML = `<div class="col-12 text-center text-muted mt-4"><p class="fs-5">${message}</p></div>`;
+        }
+
+        //primeiro criamos a variavel modal
+
+        let bookingModal;
+
+        updateStatus("Passo 1: Verificando crachá de segurança no cofre...");
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            window.location.href = "index.html";
+        } else {
+            // Se tem token, inicia o sistema imediatamente
+            iniciarPainel();
+        }
+
+        async function iniciarPainel() {
+            try {
+                updateStatus("Passo 2: Carregando as ferramentas visuais...");
+                // Tenta ligar a engrenagem da janela modal
+                bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
+
+                updateStatus("Passo 3: Conectando com a API FastAPI...");
+                // ATENÇÃO: Removi a barra final da URL (/events em vez de /events/)
+                const response = await fetch('http://127.0.0.1:8000/events', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.status === 401) {
+                    updateStatus("Acesso Negado: Sua sessão expirou. Voltando pro login...");
+                    setTimeout(logout, 2000);
+                    return;
+                }
+
+                updateStatus("Passo 4: Lendo os dados recebidos...");
+                const events = await response.json();
+
+                // Verifica se a API devolveu uma falha disfarçada em vez de uma lista
+                if (!Array.isArray(events)) {
+                    updateStatus(`<span class="text-danger fw-bold">Erro de Formato:</span> A API respondeu com: ${JSON.stringify(events)}`);
+                    return;
+                }
+
+                if (events.length === 0) {
+                    container.innerHTML = '<p class="text-muted text-center mt-4">Nenhum serviço cadastrado ainda.</p>';
+                    return;
+                }
+
+                updateStatus("Passo 5: Desenhando os cartões na tela...");
+                container.innerHTML = ''; 
+                events.forEach(event => {
+                    const card = `
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 shadow-sm border-0">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary">${event.title}</h5>
+                                    <p class="card-text text-muted">${event.description}</p>
+                                    <p class="card-text"><strong>Duração:</strong> ${event.duration_minutes} min</p>
+                                    <button class="btn btn-success btn-sm w-100" 
+                                            onclick="openBookingModal('${event.id}', '${event.company_id}', '${event.title}')">
+                                        Agendar Horário
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+
+            } catch (error) {
+                // Se der qualquer erro crítico de JavaScript ou de Rede, ele mostra na tela
+                updateStatus(`<span class="text-danger fw-bold">Falha Crítica de Sistema:</span> ${error.message}`);
+            }
+        }
+
+        // Função para abrir o formulário
+        function openBookingModal(eventId, companyId, title) {
+            document.getElementById('modal-event-id').value = eventId;
+            document.getElementById('modal-company-id').value = companyId;
+            document.getElementById('modal-service-name').textContent = `Serviço: ${title}`;
+            
+            document.getElementById('booking-form').reset();
+            document.getElementById('booking-error').classList.add('d-none');
+            document.getElementById('booking-success').classList.add('d-none');
+            document.getElementById('btn-confirm-booking').classList.remove('d-none');
+            document.getElementById('btn-confirm-booking').disabled = false;
+
+            bookingModal.show();
+        }
+
+        // Função de disparo do agendamento
+        document.getElementById('booking-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-confirm-booking');
+            btn.disabled = true;
+            btn.textContent = "Processando...";
+            
+            const eventId = document.getElementById('modal-event-id').value;
+            const companyId = document.getElementById('modal-company-id').value;
+            const dateTimeInput = document.getElementById('booking-datetime').value + ":00";
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        company_id: companyId,
+                        event_id: eventId,
+                        scheduled_time: dateTimeInput
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || "Erro ao tentar agendar.");
+
+                const successDiv = document.getElementById('booking-success');
+                successDiv.innerHTML = `Agendamento confirmado!<br>Seu QR Token: <strong class="fs-4 d-block mt-2">${data.qr_code_token}</strong>`;
+                successDiv.classList.remove('d-none');
+                btn.classList.add('d-none');
+            } catch (error) {
+                const errorDiv = document.getElementById('booking-error');
+                errorDiv.textContent = error.message;
+                errorDiv.classList.remove('d-none');
+                btn.disabled = false;
+                btn.textContent = "Confirmar Agendamento";
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = "index.html";
+        }
+    </script>
