@@ -84,17 +84,25 @@
                 bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
 
                 updateStatus("Passo 3: Conectando com a API FastAPI...");
-                // ATENÇÃO: Removi a barra final da URL (/events em vez de /events/)
+
                 const response = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/events', {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                method: 'GET',
+                headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
 
                 if (response.status === 401) {
                     updateStatus("Acesso Negado: Sua sessão expirou. Voltando pro login...");
                     setTimeout(logout, 2000);
                     return;
                 }
+
+                if (!response.ok) {
+                throw new Error(`Erro na API: ${response.status}`);
+        }
 
                 updateStatus("Passo 4: Lendo os dados recebidos...");
                 const events = await response.json();
