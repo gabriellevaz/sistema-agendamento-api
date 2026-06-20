@@ -3,18 +3,18 @@ from typing import Optional
 
 class UserBase(BaseModel):
     name: str
-    email: EmailStr  # O Pydantic já valida automaticamente se tem '@' e '.com'
+    email: EmailStr
     phone: Optional[str] = None
     birth_date: str
-    role: str
-    company_id: Optional[str] = None
+    role: str = "customer" # Default já como cliente
 
 class UserCreate(UserBase):
-    password: str # O Frontend manda a senha limpa, nós vamos transformar em hash no backend
+    password: str
+    # company_id foi removido daqui, pois o servidor injetará o company_id correto
 
 class UserResponse(UserBase):
     id: str
+    company_id: str # O sistema devolve o company_id para o front saber onde ele está
     created_at: str
     
-    # Repare que NÃO incluímos a senha aqui. Ela nunca volta pro Front!
     model_config = ConfigDict(from_attributes=True)

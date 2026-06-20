@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-# --- SCHEMAS PARA EVENTOS (Consultas/Aulas) ---
+# --- SCHEMAS PARA EVENTOS ---
 class EventBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -9,45 +9,30 @@ class EventBase(BaseModel):
     cancellation_limit_hours: int = 24
     status: str = "active"
     is_repeatable: int = 1
-    company_id: str
+    # Removido company_id daqui, pois será injetado pelo Backend
 
 class EventCreate(EventBase):
     pass
 
 class EventResponse(EventBase):
     id: str
+    company_id: str # O id aparece na resposta para leitura, mas não na criação
     
     model_config = ConfigDict(from_attributes=True)
-
-
-# --- SCHEMAS PARA DISPONIBILIDADE (Regras de Horários) ---
-class AvailabilityBase(BaseModel):
-    day_of_week: int
-    start_time: str
-    end_time: str
-    event_id: str
-
-class AvailabilityCreate(AvailabilityBase):
-    pass
-
-class AvailabilityResponse(AvailabilityBase):
-    id: str
-    
-    model_config = ConfigDict(from_attributes=True)
-
 
 # --- SCHEMAS PARA BLOQUEIOS DE CALENDÁRIO ---
 class CalendarBlockBase(BaseModel):
     start_datetime: str
     end_datetime: str
     reason: Optional[str] = None
-    company_id: str
     event_id: Optional[str] = None
+    # Removido company_id daqui pelo mesmo motivo
 
 class CalendarBlockCreate(CalendarBlockBase):
-    force_cancel: bool = False # Se for True, avisa o backend para cancelar agendamentos que existam neste horário
+    force_cancel: bool = False
 
 class CalendarBlockResponse(CalendarBlockBase):
     id: str
+    company_id: str
     
     model_config = ConfigDict(from_attributes=True)

@@ -5,21 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Sistema de Agendamento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .card { transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+    </style>
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark bg-dark mb-4">
         <div class="container">
             <a class="navbar-brand" href="#">AgendaPro</a>
-            <button class="btn btn-outline-light btn-sm" onclick="logout()">Sair (Logout)</button>
+            <button class="btn btn-outline-light btn-sm" onclick="logout()">Sair</button>
         </div>
     </nav>
 
-    <div class="container mt-5">
+    <div class="container">
         <h2 class="mb-4">Serviços Disponíveis</h2>
         <div id="events-container" class="row">
-            <div class="col-12 text-center text-muted" id="loading-msg">
-                <p>Carregando dados da API...</p>
+            <div class="col-12 text-center" id="loading-msg">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Carregando serviços...</p>
             </div>
         </div>
     </div>
@@ -29,7 +34,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Agendar Horário</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <p id="modal-service-name" class="fw-bold text-primary mb-3"></p>
@@ -38,9 +43,8 @@
             
             <form id="booking-form">
               <input type="hidden" id="modal-event-id">
-              <input type="hidden" id="modal-company-id">
               <div class="mb-4">
-                <label for="booking-datetime" class="form-label">Escolha a Data e Hora:</label>
+                <label for="booking-datetime" class="form-label">Data e Hora:</label>
                 <input type="datetime-local" class="form-control" id="booking-datetime" required>
               </div>
               <button type="submit" class="btn btn-success w-100" id="btn-confirm-booking">Confirmar Agendamento</button>
@@ -52,101 +56,82 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let bookingModal;
-        const container = document.getElementById('events-container');
-
-        function updateStatus(message) {
-            container.innerHTML = `<div class="col-12 text-center text-muted mt-4"><p class="fs-5">${message}</p></div>`;
-        }
-
-        // 1. Verificação de Segurança
+        const API_URL = 'https://sistema-agendamento-api-w3o1.onrender.com';
         const token = localStorage.getItem('access_token');
-        if (!token) {
-            window.location.href = "index.html";
-        } else {
-            iniciarPainel();
-        }
+        const bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
 
-        async function iniciarPainel() {
+        // Proteção de rota
+        if (!token) window.location.href = "index.html";
+
+        async function carregarEventos() {
             try {
-                updateStatus("Passo 2: Carregando as ferramentas visuais...");
-                bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
-
-                updateStatus("Passo 3: Conectando com a API...");
-                const response = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/events', {
-                    method: 'GET',
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                const response = await fetch(`${API_URL}/events`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                if (response.status === 401) {
-                    updateStatus("Sessão expirada. Redirecionando...");
-                    setTimeout(logout, 2000);
-                    return;
-                }
-
-                if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
+                if (response.status === 401) logout();
+                if (!response.ok) throw new Error("Erro ao carregar serviços.");
 
                 const events = await response.json();
-                
-                if (events.length === 0) {
-                    container.innerHTML = '<p class="text-muted text-center mt-4">Nenhum serviço disponível.</p>';
-                    return;
-                }
+                const container = document.getElementById('events-container');
+                container.innerHTML = '';
 
-                updateStatus(""); // Limpa o status
-                container.innerHTML = ''; 
                 events.forEach(event => {
                     container.innerHTML += `
                         <div class="col-md-4 mb-3">
                             <div class="card h-100 shadow-sm border-0">
                                 <div class="card-body">
                                     <h5 class="card-title text-primary">${event.title}</h5>
-                                    <p class="card-text text-muted">${event.description}</p>
-                                    <button class="btn btn-success btn-sm w-100" onclick="openBookingModal('${event.id}', '${event.company_id}', '${event.title}')">
-                                        Agendar Horário
-                                    </button>
+                                    <p class="card-text text-muted">${event.description || 'Sem descrição'}</p>
+                                    <button class="btn btn-success btn-sm w-100" 
+                                            onclick="abrirModal('${event.id}', '${event.title}')">Agendar</button>
                                 </div>
                             </div>
                         </div>`;
                 });
-            } catch (error) {
-                updateStatus(`<span class="text-danger fw-bold">Falha:</span> ${error.message}`);
+            } catch (err) {
+                document.getElementById('loading-msg').innerHTML = `<p class="text-danger">${err.message}</p>`;
             }
         }
 
-        function openBookingModal(eventId, companyId, title) {
+        function abrirModal(eventId, title) {
             document.getElementById('modal-event-id').value = eventId;
-            document.getElementById('modal-company-id').value = companyId;
             document.getElementById('modal-service-name').textContent = `Serviço: ${title}`;
+            document.getElementById('booking-error').classList.add('d-none');
+            document.getElementById('booking-success').classList.add('d-none');
             bookingModal.show();
         }
 
-        document.getElementById('booking-form').addEventListener('submit', async function(e) {
+        document.getElementById('booking-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btn-confirm-booking');
-            const data = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/bookings', {
+            const errorDiv = document.getElementById('booking-error');
+            const successDiv = document.getElementById('booking-success');
+            
+            const response = await fetch(`${API_URL}/bookings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
-                    company_id: document.getElementById('modal-company-id').value,
                     event_id: document.getElementById('modal-event-id').value,
                     scheduled_time: document.getElementById('booking-datetime').value + ":00"
                 })
-            }).then(r => r.json());
+            });
 
-            if (data.qr_code_token) {
-                document.getElementById('booking-success').innerHTML = `Agendado! QR: <strong>${data.qr_code_token}</strong>`;
-                document.getElementById('booking-success').classList.remove('d-none');
+            const data = await response.json();
+            if (response.ok) {
+                successDiv.innerHTML = `Agendado! Seu QR: <strong>${data.qr_code_token}</strong>`;
+                successDiv.classList.remove('d-none');
+            } else {
+                errorDiv.textContent = data.detail || "Erro no agendamento.";
+                errorDiv.classList.remove('d-none');
             }
         });
 
         function logout() {
-            localStorage.removeItem('access_token');
+            localStorage.clear();
             window.location.href = "index.html";
         }
+
+        carregarEventos();
     </script>
 </body>
 </html>

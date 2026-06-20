@@ -20,5 +20,12 @@ class Booking(Base):
     reminder_24h_sent = Column(Integer, default=0)
     created_at = Column(String, server_default=func.now())
 
-# Proteção contra Race Conditions no SQLite (Ninguém agenda no mesmo horário e no mesmo evento se estiver confirmado)
-Index("idx_unique_booking_slot", Booking.event_id, Booking.scheduled_time, unique=True, sqlite_where=(Booking.status == 'confirmed'))
+//Proteção contra conflitos entre empresas:
+    Index(
+        "idx_unique_booking_slot", 
+        Booking.company_id, 
+        Booking.event_id, 
+        Booking.scheduled_time, 
+        unique=True, 
+        sqlite_where=(Booking.status == 'confirmed')
+    )

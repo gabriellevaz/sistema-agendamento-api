@@ -15,24 +15,19 @@ router = APIRouter(
     tags=["Agendamentos"]
 )
 
-@router.post("/", response_model=BookingResponse)
-def create_booking(booking_in: BookingCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Realiza um novo agendamento, garantindo que o horário não conflite.
-    O customer_id é injetado automaticamente através do usuário logado no Token.
-    """
-    # Geramos um token único para o futuro QR Code
-    qr_token = f"QR-{uuid.uuid4().hex[:10].upper()}"
+    @router.post("/", response_model=BookingResponse)
+    def create_booking(booking_in: BookingCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        # 1. Garante que o agendamento seja sempre vinculado à empresa do usuário
+        qr_token = f"QR-{uuid.uuid4().hex[:10].upper()}"
+        
+        new_booking = Booking(
+            company_id=current_user.company_id, # <--- SEGURANÇA: Vincula à empresa do usuário
+            customer_id=current_user.id,
+            event_id=booking_in.event_id,
+            scheduled_time=booking_in.scheduled_time,
+            qr_code_token=qr_token
+        )
     
-    # Pegamos os dados que vieram do Frontend/Swagger e forçamos o customer_id
-    # a ser o ID da pessoa que está logada, garantindo segurança.
-    booking_data = booking_in.model_dump()
-    booking_data["customer_id"] = current_user.id 
-    
-    new_booking = Booking(
-        **booking_data,
-        qr_code_token=qr_token
-    )
     
     try:
         db.add(new_booking)
@@ -48,15 +43,13 @@ def create_booking(booking_in: BookingCreate, db: Session = Depends(get_db), cur
             detail="Este horário acabou de ser reservado por outra pessoa. Escolha outro horário."
         )
 
-@router.get("/", response_model=list[BookingResponse])
-def list_bookings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """
-    Lista todos os agendamentos.
-    Regra: Clientes comuns veem apenas a sua própria agenda. Admins/Staff veem tudo.
-    """
-    if current_user.role == "customer":
-        # Retorna apenas os agendamentos onde o dono é o usuário logado
-        return db.query(Booking).filter(Booking.customer_id == current_user.id).all()
-    
-    # Se passou do 'if' acima, é porque tem cargo elevado, então retorna todos
-    return db.query(Booking).all()
+    @router.get("/", response_model=list[BookingResponse])
+    def list_bookings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+        # 1. Filtro Global: Ninguém vê dados de outra empresa
+        query = db.query(Booking).filter(Booking.company_id == current_user.company_id)
+        
+        # 2. Se for cliente comum, restringe ainda mais (apenas os dele)
+        if current_user.role == "customer":
+            query = query.filter(Booking.customer_id == current_user.id)
+        
+        return query.all()

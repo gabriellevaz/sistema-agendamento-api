@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional
+import re
 
-# 1. Base: Os campos comuns que usamos tanto para criar quanto para ler
 class CompanyBase(BaseModel):
     name: str
     slug: str
@@ -10,14 +10,19 @@ class CompanyBase(BaseModel):
     parent_company_id: Optional[str] = None
     is_active: int = 1
 
-# 2. Create: O que exigimos que o Frontend nos envie para CRIAR uma empresa
-class CompanyCreate(CompanyBase):
-    pass # Por enquanto, é igual à base
+    # Validação automática para garantir que o slug seja sempre minúsculo e sem espaços
+    @field_validator('slug')
+    @classmethod
+    def slug_must_be_kebab_case(cls, v: str) -> str:
+        # Remove caracteres especiais e troca espaços por hífens
+        v = v.lower().strip()
+        return re.sub(r'[^a-z0-9\-]', '', v.replace(' ', '-'))
 
-# 3. Response: O que nós devolvemos para o Frontend depois de criar ou buscar
+class CompanyCreate(CompanyBase):
+    pass
+
 class CompanyResponse(CompanyBase):
     id: str
     created_at: str
 
-    # Isso avisa ao Pydantic para saber ler os dados do SQLAlchemy (ORM)
     model_config = ConfigDict(from_attributes=True)
