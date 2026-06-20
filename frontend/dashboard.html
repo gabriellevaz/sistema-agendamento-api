@@ -62,7 +62,7 @@
             container.innerHTML = `<div class="col-12 text-center text-muted mt-4"><p class="fs-5">${message}</p></div>`;
         }
 
-        //primeiro criamos a variavel modal
+        //primeiro criamos a variavel
 
         let bookingModal;
 
@@ -76,6 +76,7 @@
             iniciarPainel();
         }
 
+        
         async function iniciarPainel() {
             try {
                 updateStatus("Passo 2: Carregando as ferramentas visuais...");
@@ -84,7 +85,7 @@
 
                 updateStatus("Passo 3: Conectando com a API FastAPI...");
                 // ATENÇÃO: Removi a barra final da URL (/events em vez de /events/)
-                const response = await fetch('http://127.0.0.1:8000/events', {
+                const response = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/events', {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -163,7 +164,7 @@
             const dateTimeInput = document.getElementById('booking-datetime').value + ":00";
 
             try {
-                const response = await fetch('http://127.0.0.1:8000/bookings', {
+                const response = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/bookings', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
