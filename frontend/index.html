@@ -6,7 +6,6 @@
     <title>Login - Sistema de Agendamento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Um pequeno toque de CSS para centralizar o formulário na tela toda */
         body {
             background-color: #f8f9fa;
             height: 100vh;
@@ -46,21 +45,19 @@
 
     <script>
         document.getElementById('login-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Impede a página de recarregar
+            event.preventDefault(); 
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('error-message');
             
-            errorDiv.classList.add('d-none'); // Esconde erros antigos
+            errorDiv.classList.add('d-none');
 
-            // O FastAPI exige que o login seja enviado como formulário tradicional, não como JSON
             const params = new URLSearchParams();
             params.append('username', email);
             params.append('password', password);
 
             try {
-                // Chama a nossa API!
                 const response = await fetch('https://sistema-agendamento-api-w3o1.onrender.com/login', {
                     method: 'POST',
                     headers: {
@@ -75,22 +72,21 @@
 
                 const data = await response.json();
                 
-                // Sucesso! Guardamos o crachá VIP no navegador
-                localStorage.setItem('token', data.access_token);
+                // PADRONIZADO: Salvando com a chave 'access_token'
+                localStorage.setItem('access_token', data.access_token);
                 
-                // Transforma a nossa caixa de erro em uma caixa verde de sucesso
                 errorDiv.classList.remove('alert-danger');
                 errorDiv.classList.add('alert-success');
                 errorDiv.textContent = "Login efetuado com sucesso! Redirecionando...";
                 errorDiv.classList.remove('d-none');
 
-                // Espera 1 segundo (1000 milissegundos) e faz o redirecionamento automático
                 setTimeout(function() {
                     window.location.href = "dashboard.html";
                 }, 1000);
 
             } catch (error) {
-                // Se der erro, mostra a mensagem na tela
+                errorDiv.classList.remove('alert-success');
+                errorDiv.classList.add('alert-danger');
                 errorDiv.textContent = error.message;
                 errorDiv.classList.remove('d-none');
             }
